@@ -19,55 +19,132 @@ public class UploadController : ControllerBase
         _environment = environment;
     }
 
-    [HttpPost]
-    public async Task<IActionResult> UploadFile([FromForm] IFormFile file, [FromForm] string type)
+    [HttpPost("image")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UploadImage(IFormFile file)
     {
         try
         {
+            _logger.LogInformation("Starting image upload process");
+
             if (file == null || file.Length == 0)
             {
-                return BadRequest(new { message = "No file was uploaded" });
+                _logger.LogWarning("No file was uploaded");
+                return BadRequest(new { message = "Vui lòng chọn file ảnh để upload" });
             }
+
+            _logger.LogInformation($"Received file: {file.FileName}, Size: {file.Length} bytes, ContentType: {file.ContentType}");
 
             // Validate file type
-            var allowedImageTypes = new[] { "image/jpeg", "image/png", "image/gif" };
-            var allowedGameTypes = new[] { "application/zip", "application/x-rar-compressed", "application/x-7z-compressed" };
+            var allowedImageTypes = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp" };
+            var allowedContentTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/bmp", "image/webp" };
+            
+            var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var contentType = file.ContentType.ToLowerInvariant();
 
-            if (type == "image" && !allowedImageTypes.Contains(file.ContentType))
+            if (!allowedImageTypes.Contains(fileExtension) || !allowedContentTypes.Contains(contentType))
             {
-                return BadRequest(new { message = "Invalid image file type. Only JPG, PNG and GIF are allowed" });
+                _logger.LogWarning($"Invalid file type: {fileExtension}, ContentType: {contentType}");
+                return BadRequest(new { message = $"File không hợp lệ. Vui lòng upload file ảnh (jpg, jpeg, png, gif, bmp, webp). File hiện tại: {fileExtension}" });
             }
 
-            if (type == "game" && !allowedGameTypes.Contains(file.ContentType))
+            // Validate file size (max 5MB)
+            const int maxFileSize = 5 * 1024 * 1024; // 5MB
+            if (file.Length > maxFileSize)
             {
-                return BadRequest(new { message = "Invalid game file type. Only ZIP, RAR and 7Z are allowed" });
+                _logger.LogWarning($"File too large: {file.Length} bytes");
+                return BadRequest(new { message = "File quá lớn. Kích thước tối đa là 5MB" });
             }
 
-            // Create upload directory if it doesn't exist
-            var uploadPath = Path.Combine(_environment.WebRootPath, "uploads", type);
-            if (!Directory.Exists(uploadPath))
+            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "image");
+            _logger.LogInformation($"Upload path: {uploadsPath}");
+
+            if (!Directory.Exists(uploadsPath))
             {
-                Directory.CreateDirectory(uploadPath);
+                _logger.LogInformation("Creating upload directory");
+                Directory.CreateDirectory(uploadsPath);
             }
 
-            // Generate unique filename
-            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-            var filePath = Path.Combine(uploadPath, fileName);
+            var fileName = $"{Guid.NewGuid()}{fileExtension}";
+            var filePath = Path.Combine(uploadsPath, fileName);
+            _logger.LogInformation($"Saving file to: {filePath}");
 
-            // Save file
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
             }
 
-            // Return file URL
-            var fileUrl = $"/uploads/{type}/{fileName}";
-            return Ok(new { url = fileUrl });
+            var relativePath = $"/uploads/image/{fileName}";
+            _logger.LogInformation($"File uploaded successfully: {relativePath}");
+            return Ok(new { path = relativePath });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error uploading file");
-            return StatusCode(500, new { message = "An error occurred while uploading the file" });
+            _logger.LogError(ex, "Error uploading image");
+            return StatusCode(500, new { message = $"Lỗi khi upload ảnh: {ex.Message}" });
+        }
+    }
+
+    [HttpPost("game")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UploadGame(IFormFile file)
+    {
+        try
+        {
+            _logger.LogInformation("Starting game upload process");
+
+            if (file == null || file.Length == 0)
+            {
+                _logger.LogWarning("No file was uploaded");
+                return BadRequest(new { message = "Vui lòng chọn file game để upload" });
+            }
+
+            _logger.LogInformation($"Received file: {file.FileName}, Size: {file.Length} bytes, ContentType: {file.ContentType}");
+
+            // Validate file type
+            var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var contentType = file.ContentType.ToLowerInvariant();
+
+            if (fileExtension != ".swf" || !contentType.Contains("application/x-shockwave-flash"))
+            {
+                _logger.LogWarning($"Invalid file type: {fileExtension}, ContentType: {contentType}");
+                return BadRequest(new { message = $"File không hợp lệ. Vui lòng upload file game định dạng .swf. File hiện tại: {fileExtension}" });
+            }
+
+            // Validate file size (max 50MB)
+            const int maxFileSize = 50 * 1024 * 1024; // 50MB
+            if (file.Length > maxFileSize)
+            {
+                _logger.LogWarning($"File too large: {file.Length} bytes");
+                return BadRequest(new { message = "File quá lớn. Kích thước tối đa là 50MB" });
+            }
+
+            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "game");
+            _logger.LogInformation($"Upload path: {uploadsPath}");
+
+            if (!Directory.Exists(uploadsPath))
+            {
+                _logger.LogInformation("Creating upload directory");
+                Directory.CreateDirectory(uploadsPath);
+            }
+
+            var fileName = $"{Guid.NewGuid()}{fileExtension}";
+            var filePath = Path.Combine(uploadsPath, fileName);
+            _logger.LogInformation($"Saving file to: {filePath}");
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var relativePath = $"/uploads/game/{fileName}";
+            _logger.LogInformation($"File uploaded successfully: {relativePath}");
+            return Ok(new { path = relativePath });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading game");
+            return StatusCode(500, new { message = $"Lỗi khi upload game: {ex.Message}" });
         }
     }
 } 

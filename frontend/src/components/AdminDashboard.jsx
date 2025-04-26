@@ -193,12 +193,12 @@ const AdminDashboard = () => {
   };
 
   const uploadFile = async (file, type) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', type);
-
     try {
-      const response = await fetch('http://localhost:5000/api/upload', {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const endpoint = type === 'image' ? 'image' : 'game';
+      const response = await fetch(`http://localhost:5000/api/upload/${endpoint}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -207,11 +207,12 @@ const AdminDashboard = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Upload failed');
       }
 
       const data = await response.json();
-      return data.url;
+      return data.path;
     } catch (error) {
       setError('Failed to upload file: ' + error.message);
       return null;
@@ -267,7 +268,7 @@ const AdminDashboard = () => {
 
         body = {
           name: formData.name,
-          description: formData.categoryDescription,
+          description: formData.description,
           imageUrl: imageUrl
         };
       } else if (dialogType === 'user') {
@@ -296,14 +297,13 @@ const AdminDashboard = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save data');
+        throw new Error(errorData.message || 'Operation failed');
       }
 
-      setSuccess(`${dialogType} ${selectedItem ? 'updated' : 'created'} successfully`);
       handleCloseDialog();
       fetchData();
-    } catch (err) {
-      setError('Failed to save data: ' + err.message);
+    } catch (error) {
+      setError(error.message);
     }
   };
 
@@ -713,8 +713,8 @@ const AdminDashboard = () => {
                   fullWidth
                   multiline
                   rows={4}
-                  value={formData.categoryDescription}
-                  onChange={(e) => setFormData({ ...formData, categoryDescription: e.target.value })}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="subtitle1">Image</Typography>
