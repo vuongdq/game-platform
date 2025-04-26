@@ -21,7 +21,7 @@ public static class DbInitializer
                 {
                     Username = "admin",
                     Email = "admin@gameplatform.com",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
+                    Password = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
                     Role = "Admin",
                     CreatedAt = DateTime.UtcNow
                 };
@@ -98,7 +98,7 @@ public static class DbInitializer
                         Description = "A classic platformer featuring Mario in a Flash-based adventure",
                         ImageUrl = "https://i.imgur.com/1KQZQZQ.jpg",
                         GameUrl = "https://www.newgrounds.com/portal/view/123456",
-                        CategoryId = platformerCategory.Id,
+                        CategoryId = platformerCategory?.Id ?? 0,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     },
@@ -108,7 +108,7 @@ public static class DbInitializer
                         Description = "Defend your territory by strategically placing monkey towers to pop balloons",
                         ImageUrl = "https://i.imgur.com/2KQZQZQ.jpg",
                         GameUrl = "https://www.kongregate.com/games/NinjaKiwi/bloons-tower-defense-5",
-                        CategoryId = strategyCategory.Id,
+                        CategoryId = strategyCategory?.Id ?? 0,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     },
@@ -118,7 +118,7 @@ public static class DbInitializer
                         Description = "A zombie survival game where you must defend your barricade against waves of undead",
                         ImageUrl = "https://i.imgur.com/3KQZQZQ.jpg",
                         GameUrl = "https://www.armorgames.com/play/1234/the-last-stand",
-                        CategoryId = actionCategory.Id,
+                        CategoryId = actionCategory?.Id ?? 0,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     },
@@ -187,7 +187,7 @@ public static class DbInitializer
                     {
                         Username = "user1",
                         Email = "user1@example.com",
-                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("User123!"),
+                        Password = BCrypt.Net.BCrypt.HashPassword("User123!"),
                         Role = "User",
                         CreatedAt = DateTime.UtcNow
                     },
@@ -195,7 +195,7 @@ public static class DbInitializer
                     {
                         Username = "user2",
                         Email = "user2@example.com",
-                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("User123!"),
+                        Password = BCrypt.Net.BCrypt.HashPassword("User123!"),
                         Role = "User",
                         CreatedAt = DateTime.UtcNow
                     }
@@ -210,6 +210,32 @@ public static class DbInitializer
             var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger("DbInitializer");
             logger.LogError(ex, "An error occurred while initializing the database");
             throw;
+        }
+    }
+
+    private static async Task CreateAdminUser(ApplicationDbContext context)
+    {
+        try
+        {
+            if (!await context.Users.AnyAsync(u => u.Username == "admin"))
+            {
+                var adminUser = new User
+                {
+                    Username = "admin",
+                    Email = "admin@gameplatform.com",
+                    Password = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
+                    Role = "Admin",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                context.Users.Add(adminUser);
+                await context.SaveChangesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't throw to allow application to start
+            Console.WriteLine($"Error creating admin user: {ex.Message}");
         }
     }
 } 

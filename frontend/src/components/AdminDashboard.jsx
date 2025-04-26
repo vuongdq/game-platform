@@ -46,7 +46,11 @@ const AdminDashboard = () => {
     gameUrl: '',
     categoryId: '',
     name: '',
-    categoryDescription: ''
+    categoryDescription: '',
+    username: '',
+    email: '',
+    password: '',
+    role: 'User'
   });
 
   useEffect(() => {
@@ -121,7 +125,11 @@ const AdminDashboard = () => {
         gameUrl: item.gameUrl || '',
         categoryId: item.categoryId || '',
         name: item.name || '',
-        categoryDescription: item.description || ''
+        categoryDescription: item.description || '',
+        username: item.username || '',
+        email: item.email || '',
+        password: '',
+        role: item.role || 'User'
       });
     } else {
       setFormData({
@@ -131,7 +139,11 @@ const AdminDashboard = () => {
         gameUrl: '',
         categoryId: '',
         name: '',
-        categoryDescription: ''
+        categoryDescription: '',
+        username: '',
+        email: '',
+        password: '',
+        role: 'User'
       });
     }
     setOpenDialog(true);
@@ -147,7 +159,11 @@ const AdminDashboard = () => {
       gameUrl: '',
       categoryId: '',
       name: '',
-      categoryDescription: ''
+      categoryDescription: '',
+      username: '',
+      email: '',
+      password: '',
+      role: 'User'
     });
   };
 
@@ -180,6 +196,19 @@ const AdminDashboard = () => {
           description: formData.categoryDescription,
           imageUrl: formData.imageUrl
         };
+      } else if (dialogType === 'user') {
+        url = selectedItem
+          ? `http://localhost:5000/api/admin/users/${selectedItem.id}`
+          : 'http://localhost:5000/api/admin/users';
+        method = selectedItem ? 'PUT' : 'POST';
+        body = {
+          email: formData.email,
+          password: formData.password,
+          role: formData.role
+        };
+        if (!selectedItem) {
+          body.username = formData.username;
+        }
       }
 
       const response = await fetch(url, {
@@ -325,45 +354,63 @@ const AdminDashboard = () => {
         )}
 
         {activeTab === 0 && (
-          <TableContainer component={Paper} sx={{ mt: 2 }}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Username</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.username}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <FormControl>
-                        <Select
-                          value={user.role}
-                          onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                        >
-                          <MenuItem value="User">User</MenuItem>
-                          <MenuItem value="Admin">Admin</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        color="error"
-                        onClick={() => handleDeleteUser(user.id)}
-                      >
-                        Delete
-                      </Button>
-                    </TableCell>
+          <>
+            <Box sx={{ mt: 2, mb: 2 }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => handleOpenDialog('user')}
+              >
+                Add User
+              </Button>
+            </Box>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Username</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Role</TableCell>
+                    <TableCell>Actions</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.username}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <FormControl>
+                          <Select
+                            value={user.role}
+                            onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                          >
+                            <MenuItem value="User">User</MenuItem>
+                            <MenuItem value="Admin">Admin</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          color="primary"
+                          onClick={() => handleOpenDialog('user', user)}
+                          sx={{ mr: 1 }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          color="error"
+                          onClick={() => handleDeleteUser(user.id)}
+                        >
+                          Delete
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </>
         )}
 
         {activeTab === 1 && (
@@ -517,7 +564,7 @@ const AdminDashboard = () => {
                   </Select>
                 </FormControl>
               </>
-            ) : (
+            ) : dialogType === 'category' ? (
               <>
                 <TextField
                   autoFocus
@@ -543,6 +590,43 @@ const AdminDashboard = () => {
                   value={formData.imageUrl}
                   onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
                 />
+              </>
+            ) : (
+              <>
+                {!selectedItem && (
+                  <TextField
+                    autoFocus
+                    margin="dense"
+                    label="Username"
+                    fullWidth
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  />
+                )}
+                <TextField
+                  margin="dense"
+                  label="Email"
+                  fullWidth
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+                <TextField
+                  margin="dense"
+                  label="Password"
+                  type="password"
+                  fullWidth
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                />
+                <FormControl fullWidth margin="dense">
+                  <Select
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  >
+                    <MenuItem value="User">User</MenuItem>
+                    <MenuItem value="Admin">Admin</MenuItem>
+                  </Select>
+                </FormControl>
               </>
             )}
           </DialogContent>

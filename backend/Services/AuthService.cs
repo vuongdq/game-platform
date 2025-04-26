@@ -35,7 +35,7 @@ public class AuthService
                 return null;
             }
 
-            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
             {
                 _logger.LogWarning($"Login failed: Invalid password for user {request.Username}");
                 return null;
@@ -111,7 +111,7 @@ public class AuthService
             {
                 Username = request.Username,
                 Email = request.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                Password = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 Role = "User",
                 CreatedAt = DateTime.UtcNow
             };
