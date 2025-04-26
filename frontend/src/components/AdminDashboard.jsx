@@ -173,31 +173,65 @@ const AdminDashboard = () => {
     setDialogType(type);
     setSelectedItem(item);
     if (item) {
-      setFormData({
-        name: item.name || '',
-        description: item.description || '',
-        imageUrl: item.imageUrl || '',
-        gameUrl: item.gameUrl || '',
-        categoryId: item.categoryId || '',
-        isActive: item.isActive ?? true,
-        playCount: item.playCount || 0,
-        lastPlayed: item.lastPlayed || null,
-        createdAt: item.createdAt || new Date(),
-        updatedAt: item.updatedAt || null
-      });
+      if (type === 'user') {
+        setFormData({
+          id: item.id,
+          username: item.username || '',
+          email: item.email || '',
+          role: item.role || 'User',
+          isActive: item.isActive ?? true,
+          password: '' // Don't load password for security
+        });
+      } else if (type === 'game') {
+        setFormData({
+          name: item.name || '',
+          description: item.description || '',
+          imageUrl: item.imageUrl || '',
+          gameUrl: item.gameUrl || '',
+          categoryId: item.categoryId || '',
+          isActive: item.isActive ?? true,
+          playCount: item.playCount || 0,
+          lastPlayed: item.lastPlayed || null,
+          createdAt: item.createdAt || new Date(),
+          updatedAt: item.updatedAt || null
+        });
+      } else if (type === 'category') {
+        setFormData({
+          name: item.name || '',
+          description: item.description || '',
+          imageUrl: item.imageUrl || ''
+        });
+      }
     } else {
-      setFormData({
-        name: '',
-        description: '',
-        imageUrl: '',
-        gameUrl: '',
-        categoryId: '',
-        isActive: true,
-        playCount: 0,
-        lastPlayed: null,
-        createdAt: new Date(),
-        updatedAt: null
-      });
+      // Reset form data for new item
+      if (type === 'user') {
+        setFormData({
+          username: '',
+          email: '',
+          password: '',
+          role: 'User',
+          isActive: true
+        });
+      } else if (type === 'game') {
+        setFormData({
+          name: '',
+          description: '',
+          imageUrl: '',
+          gameUrl: '',
+          categoryId: '',
+          isActive: true,
+          playCount: 0,
+          lastPlayed: null,
+          createdAt: new Date(),
+          updatedAt: null
+        });
+      } else if (type === 'category') {
+        setFormData({
+          name: '',
+          description: '',
+          imageUrl: ''
+        });
+      }
     }
     setOpenDialog(true);
   };
@@ -332,7 +366,34 @@ const AdminDashboard = () => {
       let method = '';
       let body = {};
 
-      if (dialogType === 'game') {
+      if (dialogType === 'user') {
+        url = selectedItem
+          ? `http://localhost:5000/api/admin/users/${selectedItem.id}`
+          : 'http://localhost:5000/api/admin/users';
+        method = selectedItem ? 'PUT' : 'POST';
+
+        // Validate required fields
+        if (!formData.email) {
+          throw new Error('Email is required');
+        }
+        if (!selectedItem && !formData.password) {
+          throw new Error('Password is required for new users');
+        }
+
+        // Prepare user data
+        body = {
+          id: selectedItem?.id,
+          username: formData.username,
+          email: formData.email,
+          role: formData.role || 'User',
+          isActive: formData.isActive ?? true
+        };
+
+        // Only include password if it's a new user or if password is being changed
+        if (!selectedItem || formData.password) {
+          body.password = formData.password;
+        }
+      } else if (dialogType === 'game') {
         url = selectedItem
           ? `http://localhost:5000/api/game/${selectedItem.id}`
           : 'http://localhost:5000/api/game';
@@ -378,25 +439,6 @@ const AdminDashboard = () => {
           description: formData.description,
           imageUrl: imageUrl
         };
-      } else if (dialogType === 'user') {
-        url = selectedItem
-          ? `http://localhost:5000/api/admin/users/${selectedItem.id}`
-          : 'http://localhost:5000/api/admin/users';
-        method = selectedItem ? 'PUT' : 'POST';
-
-        // Prepare user data
-        body = {
-          id: selectedItem?.id,
-          username: formData.username,
-          email: formData.email,
-          role: formData.role || 'User',
-          isActive: formData.isActive ?? true
-        };
-
-        // Only include password for new users
-        if (!selectedItem && formData.password) {
-          body.password = formData.password;
-        }
       }
 
       console.log('Sending request to:', url);
@@ -1235,6 +1277,7 @@ const AdminDashboard = () => {
                       label="Username"
                       value={formData.username}
                       onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      required
                     />
                   </Grid>
                 )}
@@ -1242,8 +1285,10 @@ const AdminDashboard = () => {
                   <TextField
                     fullWidth
                     label="Email"
+                    type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -1253,6 +1298,8 @@ const AdminDashboard = () => {
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required={!selectedItem}
+                    helperText={selectedItem ? "Leave blank to keep current password" : "Required for new users"}
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -1266,6 +1313,17 @@ const AdminDashboard = () => {
                       <MenuItem value="Admin">Admin</MenuItem>
                     </Select>
                   </FormControl>
+                </Grid>
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={formData.isActive}
+                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      />
+                    }
+                    label="Active"
+                  />
                 </Grid>
               </Grid>
             )}
