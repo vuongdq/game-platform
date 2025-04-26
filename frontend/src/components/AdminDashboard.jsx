@@ -89,30 +89,33 @@ const AdminDashboard = () => {
         })
       ]);
 
+      // Check if responses are empty
+      const usersText = await usersRes.text();
+      const gamesText = await gamesRes.text();
+      const categoriesText = await categoriesRes.text();
+
+      // Parse JSON only if response is not empty
+      const usersData = usersText ? JSON.parse(usersText) : [];
+      const gamesData = gamesText ? JSON.parse(gamesText) : [];
+      const categoriesData = categoriesText ? JSON.parse(categoriesText) : [];
+
+      // Check for errors in responses
       if (!usersRes.ok) {
-        const errorData = await usersRes.json();
-        throw new Error(errorData.message || 'Failed to fetch users');
+        throw new Error(usersData.message || 'Failed to fetch users');
       }
       if (!gamesRes.ok) {
-        const errorData = await gamesRes.json();
-        throw new Error(errorData.message || 'Failed to fetch games');
+        throw new Error(gamesData.message || 'Failed to fetch games');
       }
       if (!categoriesRes.ok) {
-        const errorData = await categoriesRes.json();
-        throw new Error(errorData.message || 'Failed to fetch categories');
+        throw new Error(categoriesData.message || 'Failed to fetch categories');
       }
-
-      const [usersData, gamesData, categoriesData] = await Promise.all([
-        usersRes.json(),
-        gamesRes.json(),
-        categoriesRes.json()
-      ]);
 
       setUsers(usersData);
       setGames(gamesData);
       setCategories(categoriesData);
     } catch (err) {
-      setError('Failed to load data: ' + err.message);
+      console.error('Error fetching data:', err);
+      setError('Failed to load data: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }

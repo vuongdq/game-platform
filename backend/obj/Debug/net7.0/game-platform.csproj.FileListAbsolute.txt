@@ -1,0 +1,8 @@
+D:\1zapp\game-platform\backend\obj\Debug\net7.0\game-platform.csproj.AssemblyReference.cache
+D:\1zapp\game-platform\backend\obj\Debug\net7.0\game-platform.GeneratedMSBuildEditorConfig.editorconfig
+D:\1zapp\game-platform\backend\obj\Debug\net7.0\game-platform.AssemblyInfoInputs.cache
+D:\1zapp\game-platform\backend\obj\Debug\net7.0\game-platform.AssemblyInfo.cs
+D:\1zapp\game-platform\backend\obj\Debug\net7.0\game-platform.csproj.CoreCompileInputs.cache
+D:\1zapp\game-platform\backend\obj\Debug\net7.0\game-platform.MvcApplicationPartsAssemblyInfo.cs
+D:\1zapp\game-platform\backend\obj\Debug\net7.0\game-platform.MvcApplicationPartsAssemblyInfo.cache
+D:\1zapp\game-platform\backend\obj\Debug\net7.0\game-platform.sourcelink.json

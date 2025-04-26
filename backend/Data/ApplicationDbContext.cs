@@ -30,7 +30,47 @@ public class ApplicationDbContext : DbContext
             .IsUnique();
 
         modelBuilder.Entity<Game>()
-            .HasIndex(g => g.Title)
+            .HasIndex(g => g.Name)
             .IsUnique();
+
+        modelBuilder.Entity<Game>()
+            .HasOne(g => g.Category)
+            .WithMany()
+            .HasForeignKey(g => g.CategoryId);
+
+        modelBuilder.Entity<Game>()
+            .Property(g => g.Name)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<Game>()
+            .Property(g => g.Description)
+            .IsRequired()
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<Game>()
+            .Property(g => g.ImageUrl)
+            .IsRequired()
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<Game>()
+            .Property(g => g.GameUrl)
+            .IsRequired()
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<Category>()
+            .Property(c => c.Name)
+            .IsRequired()
+            .HasMaxLength(50);
+
+        modelBuilder.Entity<Category>()
+            .Property(c => c.Description)
+            .IsRequired()
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<Category>()
+            .Property(c => c.ImageUrl)
+            .IsRequired()
+            .HasMaxLength(500);
     }
 } 

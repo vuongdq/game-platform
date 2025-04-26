@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GamePlatform.Data;
 using GamePlatform.Models;
+using GamePlatform.DTOs;
+using GamePlatform.Services.Public;
 
-namespace GamePlatform.Controllers;
+namespace GamePlatform.Controllers.Public;
 
 [Authorize]
 [ApiController]
@@ -13,80 +15,57 @@ public class GameController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<GameController> _logger;
+    private readonly IGameService _gameService;
 
-    public GameController(ApplicationDbContext context, ILogger<GameController> logger)
+    public GameController(ApplicationDbContext context, ILogger<GameController> logger, IGameService gameService)
     {
         _context = context;
         _logger = logger;
+        _gameService = gameService;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<object>>> GetGames()
+    public async Task<ActionResult<List<GameDTO>>> GetAllGames()
     {
-        try
-        {
-            var games = await _context.Games
-                .Include(g => g.Category)
-                .Select(g => new
-                {
-                    g.Id,
-                    g.Title,
-                    g.Description,
-                    g.ImageUrl,
-                    g.GameUrl,
-                    g.CategoryId,
-                    Category = g.Category != null ? new
-                    {
-                        g.Category.Id,
-                        g.Category.Name
-                    } : null
-                })
-                .ToListAsync();
-
-            return Ok(games);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting games");
-            return StatusCode(500, new { message = "An error occurred while retrieving games" });
-        }
+        var games = await _gameService.GetAllGamesAsync();
+        return Ok(games);
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<object>> GetGame(int id)
+    public async Task<ActionResult<GameDTO>> GetGameById(int id)
     {
-        try
-        {
-            var game = await _context.Games
-                .Include(g => g.Category)
-                .Select(g => new
-                {
-                    g.Id,
-                    g.Title,
-                    g.Description,
-                    g.ImageUrl,
-                    g.GameUrl,
-                    g.CategoryId,
-                    Category = g.Category != null ? new
-                    {
-                        g.Category.Id,
-                        g.Category.Name
-                    } : null
-                })
-                .FirstOrDefaultAsync(g => g.Id == id);
+        var game = await _gameService.GetGameByIdAsync(id);
+        if (game == null)
+            return NotFound();
+        return Ok(game);
+    }
 
-            if (game == null)
-            {
-                return NotFound(new { message = $"Game with ID {id} not found" });
-            }
+    [HttpGet("category/{categoryId}")]
+    public async Task<ActionResult<List<GameDTO>>> GetGamesByCategory(int categoryId)
+    {
+        var games = await _gameService.GetGamesByCategoryAsync(categoryId);
+        return Ok(games);
+    }
 
-            return Ok(game);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting game with ID {Id}", id);
-            return StatusCode(500, new { message = "An error occurred while retrieving the game" });
-        }
+    [HttpGet("popular/{count}")]
+    public async Task<ActionResult<List<GameDTO>>> GetPopularGames(int count = 10)
+    {
+        var games = await _gameService.GetPopularGamesAsync(count);
+        return Ok(games);
+    }
+
+    [HttpGet("recent/{count}")]
+    public async Task<ActionResult<List<GameDTO>>> GetRecentlyPlayedGames(int count = 10)
+    {
+        var games = await _gameService.GetRecentlyPlayedGamesAsync(count);
+        return Ok(games);
+    }
+
+    [HttpPost("{id}/play")]
+    public async Task<ActionResult> UpdateGameStats(int id)
+    {
+        await _gameService.UpdateGameStatsAsync(id);
+        return Ok();
     }
 
     [Authorize(Roles = "Admin")]
@@ -115,7 +94,7 @@ public class GameController : ControllerBase
             var createdGame = new
             {
                 game.Id,
-                game.Title,
+                game.Name,
                 game.Description,
                 game.ImageUrl,
                 game.GameUrl,
@@ -127,7 +106,7 @@ public class GameController : ControllerBase
                 }
             };
 
-            return CreatedAtAction(nameof(GetGame), new { id = game.Id }, createdGame);
+            return CreatedAtAction(nameof(GetGameById), new { id = game.Id }, createdGame);
         }
         catch (Exception ex)
         {
@@ -159,7 +138,7 @@ public class GameController : ControllerBase
                 return BadRequest(new { message = "Invalid category ID" });
             }
 
-            existingGame.Title = request.Title;
+            existingGame.Name = request.Name;
             existingGame.Description = request.Description;
             existingGame.ImageUrl = request.ImageUrl;
             existingGame.GameUrl = request.GameUrl;
@@ -173,7 +152,7 @@ public class GameController : ControllerBase
                     message = "Game updated successfully",
                     game = new {
                         existingGame.Id,
-                        existingGame.Title,
+                        existingGame.Name,
                         existingGame.Description,
                         existingGame.ImageUrl,
                         existingGame.GameUrl,
@@ -233,9 +212,9 @@ public class GameController : ControllerBase
 
 public class GameUpdateRequest
 {
-    public string Title { get; set; }
-    public string Description { get; set; }
-    public string ImageUrl { get; set; }
-    public string GameUrl { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+    public string GameUrl { get; set; } = string.Empty;
     public int CategoryId { get; set; }
 } 

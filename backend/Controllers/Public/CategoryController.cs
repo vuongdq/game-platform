@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GamePlatform.Data;
 using GamePlatform.Models;
+using GamePlatform.DTOs;
+using GamePlatform.Services.Public;
 
-namespace GamePlatform.Controllers;
+namespace GamePlatform.Controllers.Public;
 
 [Authorize]
 [ApiController]
@@ -13,68 +15,36 @@ public class CategoryController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<CategoryController> _logger;
+    private readonly ICategoryService _categoryService;
 
-    public CategoryController(ApplicationDbContext context, ILogger<CategoryController> logger)
+    public CategoryController(ApplicationDbContext context, ILogger<CategoryController> logger, ICategoryService categoryService)
     {
         _context = context;
         _logger = logger;
+        _categoryService = categoryService;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<object>>> GetCategories()
+    public async Task<ActionResult<List<CategoryDTO>>> GetAllCategories()
     {
-        try
-        {
-            var categories = await _context.Categories
-                .Select(c => new
-                {
-                    c.Id,
-                    c.Name,
-                    c.Description,
-                    c.ImageUrl,
-                    c.CreatedAt,
-                    c.UpdatedAt
-                })
-                .ToListAsync();
-
-            return Ok(categories);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting categories");
-            return StatusCode(500, new { message = "An error occurred while retrieving categories" });
-        }
+        var categories = await _categoryService.GetAllCategoriesAsync();
+        return Ok(categories);
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<object>> GetCategory(int id)
+    public async Task<ActionResult<CategoryDTO>> GetCategoryById(int id)
     {
-        try
-        {
-            var category = await _context.Categories
-                .Select(c => new
-                {
-                    c.Id,
-                    c.Name,
-                    c.Description,
-                    c.ImageUrl,
-                    c.CreatedAt,
-                    c.UpdatedAt
-                })
-                .FirstOrDefaultAsync(c => c.Id == id);
+        var category = await _categoryService.GetCategoryByIdAsync(id);
+        if (category == null)
+            return NotFound();
+        return Ok(category);
+    }
 
-            if (category == null)
-            {
-                return NotFound(new { message = $"Category with ID {id} not found" });
-            }
-
-            return Ok(category);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting category with ID {Id}", id);
-            return StatusCode(500, new { message = "An error occurred while retrieving the category" });
-        }
+    [HttpGet("{id}/games")]
+    public async Task<ActionResult<List<GameDTO>>> GetCategoryGames(int id)
+    {
+        var games = await _categoryService.GetCategoryGamesAsync(id);
+        return Ok(games);
     }
 
     [Authorize(Roles = "Admin")]
@@ -112,7 +82,7 @@ public class CategoryController : ControllerBase
                 category.UpdatedAt
             };
 
-            return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, createdCategory);
+            return CreatedAtAction(nameof(GetCategoryById), new { id = category.Id }, createdCategory);
         }
         catch (Exception ex)
         {
@@ -199,11 +169,11 @@ public class CategoryController : ControllerBase
 
             if (category.Games?.Any() == true)
             {
-                var gameTitles = category.Games.Select(g => g.Title).ToList();
+                var gameNames = category.Games.Select(g => g.Name).ToList();
                 return BadRequest(new { 
                     message = "Cannot delete category with associated games",
-                    games = gameTitles,
-                    count = gameTitles.Count
+                    games = gameNames,
+                    count = gameNames.Count
                 });
             }
 
@@ -227,7 +197,14 @@ public class CategoryController : ControllerBase
 
 public class CategoryUpdateRequest
 {
-    public string Name { get; set; }
-    public string Description { get; set; }
-    public string ImageUrl { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+}
+
+public class CreateCategoryRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
 } 

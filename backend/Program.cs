@@ -1,6 +1,8 @@
 using System.Text;
 using GamePlatform.Data;
 using GamePlatform.Services;
+using GamePlatform.Services.Public;
+using GamePlatform.Services.Admin;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -65,6 +67,15 @@ builder.Services.AddAuthorization(options =>
 // Add Services
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserService>();
+
+// Add Public Services
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IGameService, GameService>();
+
+// Add Admin Services
+builder.Services.AddScoped<IAdminCategoryService, AdminCategoryService>();
+builder.Services.AddScoped<IAdminGameService, AdminGameService>();
+builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
 
 var app = builder.Build();
 
