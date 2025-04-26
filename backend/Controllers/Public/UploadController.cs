@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.IO;
 using System.Web;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace GamePlatform.Controllers;
 
@@ -21,6 +22,7 @@ public class UploadController : ControllerBase
 
     [HttpPost("image")]
     [Authorize(Roles = "Admin")]
+    [RequestSizeLimit(5 * 1024 * 1024)] // 5MB
     public async Task<IActionResult> UploadImage(IFormFile file)
     {
         try
@@ -56,27 +58,51 @@ public class UploadController : ControllerBase
                 return BadRequest(new { message = "File quá lớn. Kích thước tối đa là 5MB" });
             }
 
-            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "image");
-            _logger.LogInformation($"Upload path: {uploadsPath}");
+            // Get the absolute path to the wwwroot directory
+            var webRootPath = _environment.WebRootPath;
+            if (string.IsNullOrEmpty(webRootPath))
+            {
+                webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            }
 
+            // Create uploads directory if it doesn't exist
+            var uploadsPath = Path.Combine(webRootPath, "uploads");
             if (!Directory.Exists(uploadsPath))
             {
-                _logger.LogInformation("Creating upload directory");
                 Directory.CreateDirectory(uploadsPath);
             }
 
-            var fileName = $"{Guid.NewGuid()}{fileExtension}";
-            var filePath = Path.Combine(uploadsPath, fileName);
-            _logger.LogInformation($"Saving file to: {filePath}");
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            // Create image directory if it doesn't exist
+            var imagePath = Path.Combine(uploadsPath, "image");
+            if (!Directory.Exists(imagePath))
             {
-                await file.CopyToAsync(stream);
+                Directory.CreateDirectory(imagePath);
             }
 
-            var relativePath = $"/uploads/image/{fileName}";
-            _logger.LogInformation($"File uploaded successfully: {relativePath}");
-            return Ok(new { path = relativePath });
+            _logger.LogInformation($"Upload path: {imagePath}");
+
+            // Generate a unique filename
+            var fileName = $"{Guid.NewGuid()}{fileExtension}";
+            var filePath = Path.Combine(imagePath, fileName);
+            _logger.LogInformation($"Saving file to: {filePath}");
+
+            try
+            {
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                // Return the relative path
+                var relativePath = $"/uploads/image/{fileName}";
+                _logger.LogInformation($"File uploaded successfully: {relativePath}");
+                return Ok(new { path = relativePath });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving file");
+                return StatusCode(500, new { message = "Lỗi khi lưu file" });
+            }
         }
         catch (Exception ex)
         {
@@ -87,6 +113,7 @@ public class UploadController : ControllerBase
 
     [HttpPost("game")]
     [Authorize(Roles = "Admin")]
+    [RequestSizeLimit(50 * 1024 * 1024)] // 50MB
     public async Task<IActionResult> UploadGame(IFormFile file)
     {
         try
@@ -119,27 +146,51 @@ public class UploadController : ControllerBase
                 return BadRequest(new { message = "File quá lớn. Kích thước tối đa là 50MB" });
             }
 
-            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "game");
-            _logger.LogInformation($"Upload path: {uploadsPath}");
+            // Get the absolute path to the wwwroot directory
+            var webRootPath = _environment.WebRootPath;
+            if (string.IsNullOrEmpty(webRootPath))
+            {
+                webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            }
 
+            // Create uploads directory if it doesn't exist
+            var uploadsPath = Path.Combine(webRootPath, "uploads");
             if (!Directory.Exists(uploadsPath))
             {
-                _logger.LogInformation("Creating upload directory");
                 Directory.CreateDirectory(uploadsPath);
             }
 
-            var fileName = $"{Guid.NewGuid()}{fileExtension}";
-            var filePath = Path.Combine(uploadsPath, fileName);
-            _logger.LogInformation($"Saving file to: {filePath}");
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            // Create game directory if it doesn't exist
+            var gamePath = Path.Combine(uploadsPath, "game");
+            if (!Directory.Exists(gamePath))
             {
-                await file.CopyToAsync(stream);
+                Directory.CreateDirectory(gamePath);
             }
 
-            var relativePath = $"/uploads/game/{fileName}";
-            _logger.LogInformation($"File uploaded successfully: {relativePath}");
-            return Ok(new { path = relativePath });
+            _logger.LogInformation($"Upload path: {gamePath}");
+
+            // Generate a unique filename
+            var fileName = $"{Guid.NewGuid()}{fileExtension}";
+            var filePath = Path.Combine(gamePath, fileName);
+            _logger.LogInformation($"Saving file to: {filePath}");
+
+            try
+            {
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                // Return the relative path
+                var relativePath = $"/uploads/game/{fileName}";
+                _logger.LogInformation($"File uploaded successfully: {relativePath}");
+                return Ok(new { path = relativePath });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving file");
+                return StatusCode(500, new { message = "Lỗi khi lưu file" });
+            }
         }
         catch (Exception ex)
         {

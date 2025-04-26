@@ -6,6 +6,7 @@ using GamePlatform.Services.Admin;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Http.Features;
 
 var options = new WebApplicationOptions
 {
@@ -24,6 +25,17 @@ builder.Logging.SetMinimumLevel(LogLevel.Information);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Add file upload configuration
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = 50 * 1024 * 1024; // 50MB
+});
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 50 * 1024 * 1024; // 50MB
+});
 
 // Add CORS
 builder.Services.AddCors(options =>
