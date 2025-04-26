@@ -27,7 +27,8 @@ import {
   CircularProgress,
   RadioGroup,
   FormControlLabel,
-  Radio
+  Radio,
+  Switch
 } from '@mui/material';
 
 const AdminDashboard = () => {
@@ -43,17 +44,16 @@ const AdminDashboard = () => {
   const [dialogType, setDialogType] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [formData, setFormData] = useState({
-    title: '',
+    name: '',
     description: '',
     imageUrl: '',
     gameUrl: '',
     categoryId: '',
-    name: '',
-    categoryDescription: '',
-    username: '',
-    email: '',
-    password: '',
-    role: 'User'
+    isActive: true,
+    playCount: 0,
+    lastPlayed: null,
+    createdAt: new Date(),
+    updatedAt: null
   });
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedGameFile, setSelectedGameFile] = useState(null);
@@ -89,26 +89,24 @@ const AdminDashboard = () => {
         })
       ]);
 
-      // Check if responses are empty
-      const usersText = await usersRes.text();
-      const gamesText = await gamesRes.text();
-      const categoriesText = await categoriesRes.text();
-
-      // Parse JSON only if response is not empty
-      const usersData = usersText ? JSON.parse(usersText) : [];
-      const gamesData = gamesText ? JSON.parse(gamesText) : [];
-      const categoriesData = categoriesText ? JSON.parse(categoriesText) : [];
-
-      // Check for errors in responses
       if (!usersRes.ok) {
-        throw new Error(usersData.message || 'Failed to fetch users');
+        const errorData = await usersRes.json();
+        throw new Error(errorData.message || 'Failed to fetch users');
       }
       if (!gamesRes.ok) {
-        throw new Error(gamesData.message || 'Failed to fetch games');
+        const errorData = await gamesRes.json();
+        throw new Error(errorData.message || 'Failed to fetch games');
       }
       if (!categoriesRes.ok) {
-        throw new Error(categoriesData.message || 'Failed to fetch categories');
+        const errorData = await categoriesRes.json();
+        throw new Error(errorData.message || 'Failed to fetch categories');
       }
+
+      const [usersData, gamesData, categoriesData] = await Promise.all([
+        usersRes.json(),
+        gamesRes.json(),
+        categoriesRes.json()
+      ]);
 
       setUsers(usersData);
       setGames(gamesData);
@@ -130,31 +128,29 @@ const AdminDashboard = () => {
     setSelectedItem(item);
     if (item) {
       setFormData({
-        title: item.title || '',
+        name: item.name || '',
         description: item.description || '',
         imageUrl: item.imageUrl || '',
         gameUrl: item.gameUrl || '',
         categoryId: item.categoryId || '',
-        name: item.name || '',
-        categoryDescription: item.description || '',
-        username: item.username || '',
-        email: item.email || '',
-        password: '',
-        role: item.role || 'User'
+        isActive: item.isActive ?? true,
+        playCount: item.playCount || 0,
+        lastPlayed: item.lastPlayed || null,
+        createdAt: item.createdAt || new Date(),
+        updatedAt: item.updatedAt || null
       });
     } else {
       setFormData({
-        title: '',
+        name: '',
         description: '',
         imageUrl: '',
         gameUrl: '',
         categoryId: '',
-        name: '',
-        categoryDescription: '',
-        username: '',
-        email: '',
-        password: '',
-        role: 'User'
+        isActive: true,
+        playCount: 0,
+        lastPlayed: null,
+        createdAt: new Date(),
+        updatedAt: null
       });
     }
     setOpenDialog(true);
@@ -164,17 +160,16 @@ const AdminDashboard = () => {
     setOpenDialog(false);
     setSelectedItem(null);
     setFormData({
-      title: '',
+      name: '',
       description: '',
       imageUrl: '',
       gameUrl: '',
       categoryId: '',
-      name: '',
-      categoryDescription: '',
-      username: '',
-      email: '',
-      password: '',
-      role: 'User'
+      isActive: true,
+      playCount: 0,
+      lastPlayed: null,
+      createdAt: new Date(),
+      updatedAt: null
     });
   };
 
@@ -250,11 +245,12 @@ const AdminDashboard = () => {
         }
 
         body = {
-          title: formData.title,
+          name: formData.name,
           description: formData.description,
           imageUrl: imageUrl,
           gameUrl: gameUrl,
-          categoryId: parseInt(formData.categoryId)
+          categoryId: parseInt(formData.categoryId),
+          isActive: formData.isActive
         };
       } else if (dialogType === 'category') {
         url = selectedItem
@@ -280,13 +276,11 @@ const AdminDashboard = () => {
           : 'http://localhost:5000/api/admin/users';
         method = selectedItem ? 'PUT' : 'POST';
         body = {
+          username: formData.username,
           email: formData.email,
           password: formData.password,
           role: formData.role
         };
-        if (!selectedItem) {
-          body.username = formData.username;
-        }
       }
 
       const response = await fetch(url, {
@@ -299,12 +293,20 @@ const AdminDashboard = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Operation failed');
+        const errorText = await response.text();
+        let errorMessage = 'Operation failed';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       handleCloseDialog();
       fetchData();
+      setSuccess(`${dialogType} ${selectedItem ? 'updated' : 'created'} successfully`);
     } catch (error) {
       setError(error.message);
     }
@@ -316,7 +318,9 @@ const AdminDashboard = () => {
         setError('');
         const url = type === 'game'
           ? `http://localhost:5000/api/game/${id}`
-          : `http://localhost:5000/api/category/${id}`;
+          : type === 'category'
+          ? `http://localhost:5000/api/category/${id}`
+          : `http://localhost:5000/api/admin/users/${id}`;
 
         const response = await fetch(url, {
           method: 'DELETE',
@@ -326,18 +330,19 @@ const AdminDashboard = () => {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          if (errorData.games) {
-            throw new Error(
-              `Cannot delete category because it has ${errorData.count} associated games: ${errorData.games.join(', ')}`
-            );
+          const errorText = await response.text();
+          let errorMessage = `Failed to delete ${type}`;
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            errorMessage = errorText || errorMessage;
           }
-          throw new Error(errorData.message || 'Failed to delete item');
+          throw new Error(errorMessage);
         }
 
-        const data = await response.json();
-        setSuccess(data.message || `${type} deleted successfully`);
         fetchData();
+        setSuccess(`${type} deleted successfully`);
       } catch (err) {
         setError('Failed to delete item: ' + err.message);
       }
@@ -347,25 +352,33 @@ const AdminDashboard = () => {
   const handleRoleChange = async (userId, newRole) => {
     try {
       setError('');
-      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}/role`, {
+      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(newRole)
+        body: JSON.stringify({ role: newRole })
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update role');
+        const errorText = await response.text();
+        let errorMessage = 'Failed to update role';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
-      setSuccess(data.message || 'User role updated successfully');
+      // Update local state
       setUsers(users.map(user => 
         user.id === userId ? { ...user, role: newRole } : user
       ));
+      
+      setSuccess('User role updated successfully');
     } catch (err) {
       setError('Failed to update user role: ' + err.message);
     }
@@ -500,19 +513,53 @@ const AdminDashboard = () => {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Title</TableCell>
+                    <TableCell>Name</TableCell>
                     <TableCell>Description</TableCell>
                     <TableCell>Category</TableCell>
+                    <TableCell>Image</TableCell>
+                    <TableCell>Game URL</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Play Count</TableCell>
+                    <TableCell>Last Played</TableCell>
+                    <TableCell>Created At</TableCell>
+                    <TableCell>Updated At</TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {games.map((game) => (
                     <TableRow key={game.id}>
-                      <TableCell>{game.title}</TableCell>
+                      <TableCell>{game.name}</TableCell>
                       <TableCell>{game.description}</TableCell>
                       <TableCell>
                         {categories.find(c => c.id === game.categoryId)?.name}
+                      </TableCell>
+                      <TableCell>
+                        {game.imageUrl && (
+                          <img 
+                            src={game.imageUrl} 
+                            alt={game.name} 
+                            style={{ width: '50px', height: '50px', objectFit: 'cover' }} 
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <a href={game.gameUrl} target="_blank" rel="noopener noreferrer">
+                          Play Game
+                        </a>
+                      </TableCell>
+                      <TableCell>
+                        {game.isActive ? 'Active' : 'Inactive'}
+                      </TableCell>
+                      <TableCell>{game.playCount}</TableCell>
+                      <TableCell>
+                        {game.lastPlayed ? new Date(game.lastPlayed).toLocaleDateString() : 'Never'}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(game.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        {game.updatedAt ? new Date(game.updatedAt).toLocaleDateString() : 'Never'}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -595,10 +642,10 @@ const AdminDashboard = () => {
                 <TextField
                   autoFocus
                   margin="dense"
-                  label="Title"
+                  label="Name"
                   fullWidth
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
                 <TextField
                   margin="dense"
@@ -691,6 +738,7 @@ const AdminDashboard = () => {
                   <Select
                     value={formData.categoryId}
                     onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                    label="Category"
                   >
                     {categories.map((category) => (
                       <MenuItem key={category.id} value={category.id}>
@@ -699,6 +747,15 @@ const AdminDashboard = () => {
                     ))}
                   </Select>
                 </FormControl>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.isActive}
+                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    />
+                  }
+                  label="Active"
+                />
               </>
             ) : dialogType === 'category' ? (
               <>
