@@ -24,7 +24,10 @@ import {
   DialogContent,
   DialogActions,
   Snackbar,
-  CircularProgress
+  CircularProgress,
+  RadioGroup,
+  FormControlLabel,
+  Radio
 } from '@mui/material';
 
 const AdminDashboard = () => {
@@ -52,6 +55,11 @@ const AdminDashboard = () => {
     password: '',
     role: 'User'
   });
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedGameFile, setSelectedGameFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [imageUploadMethod, setImageUploadMethod] = useState('url');
+  const [gameUploadMethod, setGameUploadMethod] = useState('url');
 
   useEffect(() => {
     if (user?.role === 'Admin') {
@@ -167,6 +175,49 @@ const AdminDashboard = () => {
     });
   };
 
+  const handleCloseSnackbar = () => {
+    setError('');
+    setSuccess('');
+  };
+
+  const handleImageChange = (event) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedImage(event.target.files[0]);
+    }
+  };
+
+  const handleGameFileChange = (event) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedGameFile(event.target.files[0]);
+    }
+  };
+
+  const uploadFile = async (file, type) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
+
+    try {
+      const response = await fetch('http://localhost:5000/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await response.json();
+      return data.url;
+    } catch (error) {
+      setError('Failed to upload file: ' + error.message);
+      return null;
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       setError('');
@@ -179,11 +230,26 @@ const AdminDashboard = () => {
           ? `http://localhost:5000/api/game/${selectedItem.id}`
           : 'http://localhost:5000/api/game';
         method = selectedItem ? 'PUT' : 'POST';
+
+        // Upload game file if selected
+        let gameUrl = formData.gameUrl;
+        if (selectedGameFile) {
+          gameUrl = await uploadFile(selectedGameFile, 'game');
+          if (!gameUrl) return;
+        }
+
+        // Upload image if selected
+        let imageUrl = formData.imageUrl;
+        if (selectedImage) {
+          imageUrl = await uploadFile(selectedImage, 'image');
+          if (!imageUrl) return;
+        }
+
         body = {
           title: formData.title,
           description: formData.description,
-          imageUrl: formData.imageUrl,
-          gameUrl: formData.gameUrl,
+          imageUrl: imageUrl,
+          gameUrl: gameUrl,
           categoryId: parseInt(formData.categoryId)
         };
       } else if (dialogType === 'category') {
@@ -191,10 +257,18 @@ const AdminDashboard = () => {
           ? `http://localhost:5000/api/category/${selectedItem.id}`
           : 'http://localhost:5000/api/category';
         method = selectedItem ? 'PUT' : 'POST';
+
+        // Upload image if selected
+        let imageUrl = formData.imageUrl;
+        if (selectedImage) {
+          imageUrl = await uploadFile(selectedImage, 'image');
+          if (!imageUrl) return;
+        }
+
         body = {
           name: formData.name,
           description: formData.categoryDescription,
-          imageUrl: formData.imageUrl
+          imageUrl: imageUrl
         };
       } else if (dialogType === 'user') {
         url = selectedItem
@@ -317,11 +391,6 @@ const AdminDashboard = () => {
         setError('Failed to delete user: ' + err.message);
       }
     }
-  };
-
-  const handleCloseSnackbar = () => {
-    setError('');
-    setSuccess('');
   };
 
   if (loading) {
@@ -537,20 +606,84 @@ const AdminDashboard = () => {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
-                <TextField
-                  margin="dense"
-                  label="Image URL"
-                  fullWidth
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                />
-                <TextField
-                  margin="dense"
-                  label="Game URL"
-                  fullWidth
-                  value={formData.gameUrl}
-                  onChange={(e) => setFormData({ ...formData, gameUrl: e.target.value })}
-                />
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle1">Image</Typography>
+                  <FormControl component="fieldset" sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <FormControl>
+                        <RadioGroup
+                          row
+                          value={imageUploadMethod}
+                          onChange={(e) => setImageUploadMethod(e.target.value)}
+                        >
+                          <FormControlLabel value="url" control={<Radio />} label="URL" />
+                          <FormControlLabel value="upload" control={<Radio />} label="Upload" />
+                        </RadioGroup>
+                      </FormControl>
+                    </Box>
+                  </FormControl>
+                  {imageUploadMethod === 'url' ? (
+                    <TextField
+                      fullWidth
+                      label="Image URL"
+                      value={formData.imageUrl}
+                      onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                    />
+                  ) : (
+                    <>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        style={{ marginTop: '8px' }}
+                      />
+                      {formData.imageUrl && !selectedImage && (
+                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                          Current image: {formData.imageUrl}
+                        </Typography>
+                      )}
+                    </>
+                  )}
+                </Box>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle1">Game File</Typography>
+                  <FormControl component="fieldset" sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <FormControl>
+                        <RadioGroup
+                          row
+                          value={gameUploadMethod}
+                          onChange={(e) => setGameUploadMethod(e.target.value)}
+                        >
+                          <FormControlLabel value="url" control={<Radio />} label="URL" />
+                          <FormControlLabel value="upload" control={<Radio />} label="Upload" />
+                        </RadioGroup>
+                      </FormControl>
+                    </Box>
+                  </FormControl>
+                  {gameUploadMethod === 'url' ? (
+                    <TextField
+                      fullWidth
+                      label="Game URL"
+                      value={formData.gameUrl}
+                      onChange={(e) => setFormData({ ...formData, gameUrl: e.target.value })}
+                    />
+                  ) : (
+                    <>
+                      <input
+                        type="file"
+                        accept=".zip,.rar,.7z"
+                        onChange={handleGameFileChange}
+                        style={{ marginTop: '8px' }}
+                      />
+                      {formData.gameUrl && !selectedGameFile && (
+                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                          Current game file: {formData.gameUrl}
+                        </Typography>
+                      )}
+                    </>
+                  )}
+                </Box>
                 <FormControl fullWidth margin="dense">
                   <Select
                     value={formData.categoryId}
@@ -583,13 +716,45 @@ const AdminDashboard = () => {
                   value={formData.categoryDescription}
                   onChange={(e) => setFormData({ ...formData, categoryDescription: e.target.value })}
                 />
-                <TextField
-                  margin="dense"
-                  label="Image URL"
-                  fullWidth
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                />
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle1">Image</Typography>
+                  <FormControl component="fieldset" sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <FormControl>
+                        <RadioGroup
+                          row
+                          value={imageUploadMethod}
+                          onChange={(e) => setImageUploadMethod(e.target.value)}
+                        >
+                          <FormControlLabel value="url" control={<Radio />} label="URL" />
+                          <FormControlLabel value="upload" control={<Radio />} label="Upload" />
+                        </RadioGroup>
+                      </FormControl>
+                    </Box>
+                  </FormControl>
+                  {imageUploadMethod === 'url' ? (
+                    <TextField
+                      fullWidth
+                      label="Image URL"
+                      value={formData.imageUrl}
+                      onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                    />
+                  ) : (
+                    <>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        style={{ marginTop: '8px' }}
+                      />
+                      {formData.imageUrl && !selectedImage && (
+                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                          Current image: {formData.imageUrl}
+                        </Typography>
+                      )}
+                    </>
+                  )}
+                </Box>
               </>
             ) : (
               <>

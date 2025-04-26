@@ -5,7 +5,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
-var builder = WebApplication.CreateBuilder(args);
+var options = new WebApplicationOptions
+{
+    WebRootPath = "wwwroot"
+};
+
+var builder = WebApplication.CreateBuilder(options);
 
 // Configure logging
 builder.Logging.ClearProviders();
@@ -92,6 +97,19 @@ app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Add static files support
+app.UseStaticFiles();
+
+// Create uploads directory if it doesn't exist
+var uploadsPath = Path.Combine(app.Environment.WebRootPath, "uploads");
+if (!Directory.Exists(uploadsPath))
+{
+    Directory.CreateDirectory(uploadsPath);
+    Directory.CreateDirectory(Path.Combine(uploadsPath, "image"));
+    Directory.CreateDirectory(Path.Combine(uploadsPath, "game"));
+}
+
 app.MapControllers();
 
 app.Run(); 
